@@ -16,7 +16,9 @@ app.post("/generate-plan", async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    const systemMsg = "You are an expert personal trainer and nutrition coach. Be specific with real numbers. Use ## for main sections, ### for subsections. Be concise but complete each section fully.";
+    const systemMsg = `You are an expert personal trainer and nutrition coach. Be specific with real numbers. Use ## for main sections, ### for subsections. Be concise but complete each section fully.
+
+CRITICAL — SECTION HEADINGS: Use EXACTLY the ## headings specified in the prompt. Do not rename, reorder, combine, or add sections. The exact heading text must match character-for-character. Do not add extra ## sections not listed.`;
 
     const callAnthropic = async (userMsg) => {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -38,10 +40,11 @@ app.post("/generate-plan", async (req, res) => {
       return data.content?.[0]?.text || "";
     };
 
-    const part1Prompt = prompt + "\n\nWrite ONLY these sections — be thorough:\n## YOUR PERSONAL SNAPSHOT\n## YOUR DAILY CALORIE & MACRO TARGETS\n## YOUR WEEKLY WORKOUT PLAN";
-    const part2Prompt = prompt + "\n\nWrite ONLY these sections — be thorough:\n## EXERCISE TECHNIQUE TIPS\n## YOUR NUTRITION STRATEGY\n## SUPPLEMENT RECOMMENDATIONS";
-    const part3Prompt = prompt + "\n\nWrite ONLY these sections — be thorough:\n## RECOVERY & LIFESTYLE\n## YOUR 4-WEEK PROGRESSION PLAN\n## TOP 3 HABITS TO BUILD FIRST\n## REALISTIC EXPECTATIONS";
+    const part1Prompt = prompt + "\n\nWrite ONLY these 3 sections — be thorough. Use the heading text EXACTLY as written:\n## YOUR PERSONAL SNAPSHOT\n## YOUR DAILY CALORIE & MACRO TARGETS\n## YOUR WEEKLY WORKOUT PLAN";
+    const part2Prompt = prompt + "\n\nWrite ONLY these 3 sections — be thorough. Use the heading text EXACTLY as written:\n## EXERCISE NOTES & TECHNIQUE TIPS\n## YOUR NUTRITION STRATEGY\n## SUPPLEMENT RECOMMENDATIONS";
+    const part3Prompt = prompt + "\n\nWrite ONLY these 4 sections — be thorough. Use the heading text EXACTLY as written:\n## RECOVERY & LIFESTYLE OPTIMIZATION\n## YOUR 4-WEEK PROGRESSION PLAN\n## THE 3 HABITS TO BUILD FIRST\n## REALISTIC EXPECTATIONS";
 
+    console.log("Generating plan in 3 parallel parts...");
     const [part1, part2, part3] = await Promise.all([
       callAnthropic(part1Prompt),
       callAnthropic(part2Prompt),
@@ -49,9 +52,12 @@ app.post("/generate-plan", async (req, res) => {
     ]);
 
     const fullPlan = part1 + "\n\n---\n\n" + part2 + "\n\n---\n\n" + part3;
+    console.log("Plan complete, total length:", fullPlan.length);
+
     res.json({ success: true, plan: fullPlan });
 
   } catch (error) {
+    console.error("Error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
