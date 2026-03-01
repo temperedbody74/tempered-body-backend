@@ -3,7 +3,7 @@ const cors = require("cors");
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,9 +16,7 @@ app.post("/generate-plan", async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    const systemMsg = `You are an expert personal trainer and nutrition coach. Be specific with real numbers. Use ## for main sections, ### for subsections. Be concise but complete each section fully.
-
-CRITICAL — SECTION HEADINGS: Use EXACTLY the ## headings specified in the prompt. Do not rename, reorder, combine, or add sections. The exact heading text must match character-for-character. Do not add extra ## sections not listed.`;
+    const systemMsg = `You are an expert personal trainer and nutrition coach. Create complete, personalized fitness plans. Use ## for main sections, ### for subsections. Be specific with real numbers. Complete ALL sections fully.`;
 
     const callAnthropic = async (userMsg) => {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -30,7 +28,7 @@ CRITICAL — SECTION HEADINGS: Use EXACTLY the ## headings specified in the prom
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-5",
-          max_tokens: 2500,
+          max_tokens: 3000,
           system: systemMsg,
           messages: [{ role: "user", content: userMsg }]
         })
@@ -40,20 +38,15 @@ CRITICAL — SECTION HEADINGS: Use EXACTLY the ## headings specified in the prom
       return data.content?.[0]?.text || "";
     };
 
-    const part1Prompt = prompt + "\n\nWrite ONLY these 3 sections — be thorough. Use the heading text EXACTLY as written:\n## YOUR PERSONAL SNAPSHOT\n## YOUR DAILY CALORIE & MACRO TARGETS\n## YOUR WEEKLY WORKOUT PLAN";
-    const part2Prompt = prompt + "\n\nWrite ONLY these 3 sections — be thorough. Use the heading text EXACTLY as written:\n## EXERCISE NOTES & TECHNIQUE TIPS\n## YOUR NUTRITION STRATEGY\n## SUPPLEMENT RECOMMENDATIONS";
-    const part3Prompt = prompt + "\n\nWrite ONLY these 4 sections — be thorough. Use the heading text EXACTLY as written:\n## RECOVERY & LIFESTYLE OPTIMIZATION\n## YOUR 4-WEEK PROGRESSION PLAN\n## THE 3 HABITS TO BUILD FIRST\n## REALISTIC EXPECTATIONS";
+    const part1Prompt = prompt + "\n\nWrite ONLY these sections:\n## YOUR PERSONAL SNAPSHOT\n## YOUR DAILY CALORIE & MACRO TARGETS\n## YOUR WEEKLY WORKOUT PLAN\n## EXERCISE TECHNIQUE TIPS";
+    const part2Prompt = prompt + "\n\nWrite ONLY these sections:\n## YOUR NUTRITION STRATEGY\n## SUPPLEMENT RECOMMENDATIONS\n## RECOVERY & LIFESTYLE\n## YOUR 4-WEEK PROGRESSION PLAN\n## TOP 3 HABITS TO BUILD FIRST\n## REALISTIC EXPECTATIONS";
 
-    console.log("Generating plan in 3 parallel parts...");
-    const [part1, part2, part3] = await Promise.all([
+    const [part1, part2] = await Promise.all([
       callAnthropic(part1Prompt),
-      callAnthropic(part2Prompt),
-      callAnthropic(part3Prompt)
+      callAnthropic(part2Prompt)
     ]);
 
-    const fullPlan = part1 + "\n\n---\n\n" + part2 + "\n\n---\n\n" + part3;
-    console.log("Plan complete, total length:", fullPlan.length);
-
+    const fullPlan = part1 + "\n\n---\n\n" + part2;
     res.json({ success: true, plan: fullPlan });
 
   } catch (error) {
@@ -73,7 +66,9 @@ app.post("/validate-code", async (req, res) => {
 
   if (usedCodes.includes(upperCode)) return res.json({ valid: false, error: "This code has already been used." });
   if (freeCodes.includes(upperCode)) return res.json({ valid: true, type: "free", message: "Free access granted!" });
-  if (discCodes.includes(upperCode)) return res.json({ valid: true, type: "discount", message: "15% discount applied!", redirectUrl: process.env.STRIPE_COUPON_URL || "" });
+  if (discCodes.includes(upperCode)) {
+    return res.json({ valid: true, type: "discount", message: "15% discount applied!", redirectUrl: process.env.STRIPE_COUPON_URL || "" });
+  }
 
   return res.json({ valid: false, error: "Invalid promo code." });
 });
@@ -83,5 +78,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`Server running on port ${PORT}`);
 });
