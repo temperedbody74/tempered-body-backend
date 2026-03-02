@@ -71,13 +71,15 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
 
     const part4Prompt = prompt + "\n\nWrite ONLY these 7 sections — be concise but complete. Use the heading text EXACTLY as written:\n## PROGRESS MONITORING PROTOCOL\n## DELOAD PROTOCOL\n## CONDITIONING PROGRESSION\n## POST-CUT TRANSITION PHASE\n## YOUR 4-WEEK PROGRESSION PLAN\n## THE 3 HABITS TO BUILD FIRST\n## REALISTIC EXPECTATIONS\n\nFor PROGRESS MONITORING PROTOCOL: daily weigh-ins upon waking, record Sunday weekly average, waist measurement every 2 weeks at navel relaxed, progress photos every 4 weeks same pose and lighting, track 4 performance lifts. Clarify scale fluctuations are normal due to water and glycogen.\nFor DELOAD PROTOCOL: implement at week 6 or when recovery declines, reduce total volume by 25%, reduce load by 10%, stop 3 reps short of failure on all sets, maintain steps and nutrition unchanged. Note this protects joints and CNS — especially important for 50+ trainees.\nFor CONDITIONING PROGRESSION: use client's current step baseline, threshold for increasing steps if fat loss stalls, maximum step ceiling during a cut, optional incline walk protocol 2-3x weekly. Clarify cardio supports the deficit but does not replace macro compliance.\nFor POST-CUT TRANSITION PHASE: once goal weight is reached, increase calories by 100 per week adding carbs first, maintain protein target, maintain training intensity, continue daily weigh averages, stop increasing once weekly average stabilizes for 2 consecutive weeks. Clarify this protocol prevents rapid fat regain.";
 
-    console.log("Generating plan in 4 parallel parts...");
-    const [part1, part2, part3, part4] = await Promise.all([
-      callAnthropic(part1Prompt, "[Part1]"),
-      callAnthropic(part2Prompt, "[Part2]"),
-      callAnthropic(part3Prompt, "[Part3]"),
-      callAnthropic(part4Prompt, "[Part4]")
-    ]);
+    // Sequential calls — prevents Anthropic rate-limiting from silently dropping concurrent requests
+    console.log("Generating plan — Part 1 of 4...");
+    const part1 = await callAnthropic(part1Prompt, "[Part1]");
+    console.log("Generating plan — Part 2 of 4...");
+    const part2 = await callAnthropic(part2Prompt, "[Part2]");
+    console.log("Generating plan — Part 3 of 4...");
+    const part3 = await callAnthropic(part3Prompt, "[Part3]");
+    console.log("Generating plan — Part 4 of 4...");
+    const part4 = await callAnthropic(part4Prompt, "[Part4]");
 
     const fullPlan = part1 + "\n\n---\n\n" + part2 + "\n\n---\n\n" + part3 + "\n\n---\n\n" + part4;
     console.log("Plan complete, total length:", fullPlan.length);
