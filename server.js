@@ -24,24 +24,43 @@ CRITICAL — FORMAT: Start your response directly with the first ## heading. No 
 
 CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY in INJURY MODIFICATION PROTOCOL — do not repeat injury warnings in any other section. Protein target justification belongs ONLY in the macro section — do not re-explain it in supplements.`;
 
-    const callAnthropic = async (userMsg) => {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 5000,
-          system: systemMsg,
-          messages: [{ role: "user", content: userMsg }]
-        })
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
-      return data.content?.[0]?.text || "";
+    const callAnthropic = async (userMsg, label = "") => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": ANTHROPIC_API_KEY,
+              "anthropic-version": "2023-06-01"
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-5",
+              max_tokens: 5000,
+              system: systemMsg,
+              messages: [{ role: "user", content: userMsg }]
+            })
+          });
+          const data = await response.json();
+          if (data.error) {
+            console.error(`${label} attempt ${attempt} API error:`, data.error.message);
+            if (attempt < 3) { await new Promise(r => setTimeout(r, 1500 * attempt)); continue; }
+            throw new Error(data.error.message);
+          }
+          const text = data.content?.[0]?.text || "";
+          if (!text) {
+            console.warn(`${label} attempt ${attempt} returned empty text — retrying...`);
+            if (attempt < 3) { await new Promise(r => setTimeout(r, 1500 * attempt)); continue; }
+          }
+          console.log(`${label} attempt ${attempt} success, length: ${text.length}`);
+          return text;
+        } catch (err) {
+          console.error(`${label} attempt ${attempt} threw:`, err.message);
+          if (attempt < 3) { await new Promise(r => setTimeout(r, 1500 * attempt)); continue; }
+          throw err;
+        }
+      }
+      return "";
     };
 
     const part1Prompt = prompt + "\n\nWrite ONLY these 3 sections — be thorough. Use the heading text EXACTLY as written:\n## YOUR PERSONAL SNAPSHOT\n## YOUR DAILY CALORIE & MACRO TARGETS\n## YOUR WEEKLY WORKOUT PLAN";
@@ -54,10 +73,10 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
 
     console.log("Generating plan in 4 parallel parts...");
     const [part1, part2, part3, part4] = await Promise.all([
-      callAnthropic(part1Prompt),
-      callAnthropic(part2Prompt),
-      callAnthropic(part3Prompt),
-      callAnthropic(part4Prompt)
+      callAnthropic(part1Prompt, "[Part1]"),
+      callAnthropic(part2Prompt, "[Part2]"),
+      callAnthropic(part3Prompt, "[Part3]"),
+      callAnthropic(part4Prompt, "[Part4]")
     ]);
 
     const fullPlan = part1 + "\n\n---\n\n" + part2 + "\n\n---\n\n" + part3 + "\n\n---\n\n" + part4;
