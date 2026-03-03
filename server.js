@@ -118,4 +118,15 @@ app.post("/validate-code", async (req, res) => {
 
   if (usedCodes.includes(upperCode)) return res.json({ valid: false, error: "This code has already been used." });
   if (freeCodes.includes(upperCode)) return res.json({ valid: true, type: "free", message: "Free access granted!" });
-  if (discCodes.includes(upperCode)) return res.json({ valid: true, type: "discount", message: "15% discount applied!", redirectUrl: process.env.STRIPE_COU
+  if (discCodes.includes(upperCode)) return res.json({ valid: true, type: "discount", message: "15% discount applied!", redirectUrl: process.env.STRIPE_COUPON_URL || "" });
+
+  return res.json({ valid: false, error: "Invalid promo code." });
+});
+
+app.get("/", (req, res) => {
+  res.json({ status: "Tempered Body API is running" });
+});
+
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
