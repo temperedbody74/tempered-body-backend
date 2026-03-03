@@ -26,9 +26,12 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
 
     const callAnthropic = async (userMsg, label = "") => {
       for (let attempt = 1; attempt <= 3; attempt++) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
         try {
           const response = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
+            signal: controller.signal,
             headers: {
               "Content-Type": "application/json",
               "x-api-key": ANTHROPIC_API_KEY,
@@ -41,22 +44,24 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
               messages: [{ role: "user", content: userMsg }]
             })
           });
+          clearTimeout(timeout);
           const data = await response.json();
           if (data.error) {
             console.error(`${label} attempt ${attempt} API error:`, data.error.message);
-            if (attempt < 3) { await new Promise(r => setTimeout(r, 1500 * attempt)); continue; }
+            if (attempt < 3) { await new Promise(r => setTimeout(r, 2000 * attempt)); continue; }
             throw new Error(data.error.message);
           }
           const text = data.content?.[0]?.text || "";
           if (!text) {
             console.warn(`${label} attempt ${attempt} returned empty text — retrying...`);
-            if (attempt < 3) { await new Promise(r => setTimeout(r, 1500 * attempt)); continue; }
+            if (attempt < 3) { await new Promise(r => setTimeout(r, 2000 * attempt)); continue; }
           }
           console.log(`${label} attempt ${attempt} success, length: ${text.length}`);
           return text;
         } catch (err) {
+          clearTimeout(timeout);
           console.error(`${label} attempt ${attempt} threw:`, err.message);
-          if (attempt < 3) { await new Promise(r => setTimeout(r, 1500 * attempt)); continue; }
+          if (attempt < 3) { await new Promise(r => setTimeout(r, 2000 * attempt)); continue; }
           throw err;
         }
       }
@@ -105,13 +110,4 @@ app.post("/validate-code", async (req, res) => {
   if (freeCodes.includes(upperCode)) return res.json({ valid: true, type: "free", message: "Free access granted!" });
   if (discCodes.includes(upperCode)) return res.json({ valid: true, type: "discount", message: "15% discount applied!", redirectUrl: process.env.STRIPE_COUPON_URL || "" });
 
-  return res.json({ valid: false, error: "Invalid promo code." });
-});
-
-app.get("/", (req, res) => {
-  res.json({ status: "Tempered Body API is running" });
-});
-
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+ 
