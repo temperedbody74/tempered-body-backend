@@ -1,4 +1,4 @@
-onst express = require("express");
+const express = require("express");
 const cors = require("cors");
 const app = express();
 
@@ -12,22 +12,6 @@ app.post("/generate-plan", async (req, res) => {
   if (!ANTHROPIC_API_KEY) {
     return res.status(500).json({ success: false, error: "API key not configured" });
   }
-
-  // ── SSE setup — keeps connection alive for the full generation ──
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.flushHeaders();
-
-  const send = (data) => {
-    if (!res.writableEnded) res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
-
-  // Ping every 15 s so Railway/proxies don't close an idle connection
-  const keepAlive = setInterval(() => {
-    if (!res.writableEnded) res.write(": ping\n\n");
-  }, 15000);
 
   try {
     const { prompt } = req.body;
@@ -104,36 +88,22 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
     const part3Prompt = prompt + "\n\nWrite ONLY these 3 sections — be thorough. Use the heading text EXACTLY as written:\n## SUPPLEMENT RECOMMENDATIONS\n## RECOVERY & LIFESTYLE OPTIMIZATION\n## WEEKLY CHECK-IN & ADJUSTMENT ENGINE\n\nFor WEEKLY CHECK-IN & ADJUSTMENT ENGINE: include daily weigh-in protocol, 7-day rolling average as the sole decision metric, and these exact decision rules — if average weekly loss >1.5 lbs: increase calories by 100 (carbs first). If loss <0.5 lb for 2 consecutive weeks: decrease carbs by 20g. If strength drops on 2+ major lifts for 2 weeks: add 1 refeed day at maintenance calories (carbs only increase). If energy crashes for 7+ days: increase carbs 15-25g. If recovery markers decline: insert deload week early. Adjust only after 2 consecutive weeks of trend confirmation. Language must be systematic and data-driven — not motivational.";
     const part4Prompt = prompt + "\n\nWrite ONLY these 7 sections — be concise but complete. Use the heading text EXACTLY as written:\n## PROGRESS MONITORING PROTOCOL\n## DELOAD PROTOCOL\n## CONDITIONING PROGRESSION\n## POST-CUT TRANSITION PHASE\n## YOUR 4-WEEK PROGRESSION PLAN\n## THE 3 HABITS TO BUILD FIRST\n## REALISTIC EXPECTATIONS\n\nFor PROGRESS MONITORING PROTOCOL: daily weigh-ins upon waking, record Sunday weekly average, waist measurement every 2 weeks at navel relaxed, progress photos every 4 weeks same pose and lighting, track 4 performance lifts. Clarify scale fluctuations are normal due to water and glycogen.\nFor DELOAD PROTOCOL: implement at week 6 or when recovery declines, reduce total volume by 25%, reduce load by 10%, stop 3 reps short of failure on all sets, maintain steps and nutrition unchanged. Note this protects joints and CNS — especially important for 50+ trainees.\nFor CONDITIONING PROGRESSION: use client's current step baseline, threshold for increasing steps if fat loss stalls, maximum step ceiling during a cut, optional incline walk protocol 2-3x weekly. Clarify cardio supports the deficit but does not replace macro compliance.\nFor POST-CUT TRANSITION PHASE: once goal weight is reached, increase calories by 100 per week adding carbs first, maintain protein target, maintain training intensity, continue daily weigh averages, stop increasing once weekly average stabilizes for 2 consecutive weeks. Clarify this protocol prevents rapid fat regain.";
 
-    send({ type: "progress", pct: 5 });
-
-    // Run all 4 parts in parallel; send a real progress event as each one finishes
-    let doneCount = 0;
-    const track = async (promise) => {
-      const text = await promise;
-      doneCount++;
-      send({ type: "progress", pct: 5 + doneCount * 22 }); // 27 / 49 / 71 / 93
-      return text;
-    };
-
     console.log("Generating plan in 4 parallel parts...");
     const [part1, part2, part3, part4] = await Promise.all([
-      track(callAnthropic(part1Prompt, "[Part1]")),
-      track(callAnthropic(part2Prompt, "[Part2]")),
-      track(callAnthropic(part3Prompt, "[Part3]")),
-      track(callAnthropic(part4Prompt, "[Part4]"))
+      callAnthropic(part1Prompt, "[Part1]"),
+      callAnthropic(part2Prompt, "[Part2]"),
+      callAnthropic(part3Prompt, "[Part3]"),
+      callAnthropic(part4Prompt, "[Part4]")
     ]);
 
     const fullPlan = part1 + "\n\n---\n\n" + part2 + "\n\n---\n\n" + part3 + "\n\n---\n\n" + part4;
     console.log("Plan complete, total length:", fullPlan.length);
 
-    send({ type: "complete", plan: fullPlan });
+    res.json({ success: true, plan: fullPlan });
 
   } catch (error) {
     console.error("Error:", error.message);
-    send({ type: "error", message: error.message });
-  } finally {
-    clearInterval(keepAlive);
-    res.end();
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
