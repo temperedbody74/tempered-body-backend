@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
-app.use(cors({ origin: ['https://temperedbody.fit', 'https://www.temperedbody.fit'] }));
+app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 const PORT = process.env.PORT || 3000;
@@ -27,7 +27,7 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
     const callAnthropic = async (userMsg, label = "") => {
       for (let attempt = 1; attempt <= 3; attempt++) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 100000); // 100s timeout — sonnet-4-6 needs more than 30s to generate ~8000 tokens
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
         try {
           const response = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
@@ -38,8 +38,8 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
               "anthropic-version": "2023-06-01"
             },
             body: JSON.stringify({
-              model: "claude-sonnet-4-6",
-              max_tokens: 8000,
+              model: "claude-sonnet-4-5",
+              max_tokens: 5000,
               system: systemMsg,
               messages: [{ role: "user", content: userMsg }]
             })
@@ -117,4 +117,6 @@ app.get("/", (req, res) => {
   res.json({ status: "Tempered Body API is running" });
 });
 
-app.listen(PORT, (
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
