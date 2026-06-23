@@ -27,7 +27,7 @@ CRITICAL — NO REPETITION: Injury and physical limitation guidance belongs ONLY
     const callAnthropic = async (userMsg, label = "") => {
       for (let attempt = 1; attempt <= 3; attempt++) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        const timeout = setTimeout(() => controller.abort(), 100000); // 100s timeout — sonnet-4-6 needs more than 30s to generate ~8000 tokens
         try {
           const response = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
@@ -117,6 +117,4 @@ app.get("/", (req, res) => {
   res.json({ status: "Tempered Body API is running" });
 });
 
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+app.listen(PORT, (
